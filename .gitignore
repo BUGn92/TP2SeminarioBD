@@ -1,0 +1,11 @@
+contexto.md
+Trabajo Práctico 2 _ ISNSLBV.pdf
+plan_implementacion_1.md
+.env
+venv_tp2
+sakila-dataSQLserver.sql
+sakila-schemaSQLserver.sql
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*.egg-info/
