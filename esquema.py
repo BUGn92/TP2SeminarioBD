@@ -1,19 +1,12 @@
 """
 Módulo de Diccionario de Esquema y Portabilidad
 Trabajo Práctico 2 - Equipo 6
-
-Permite desacoplar el código de análisis y del pipeline de los nombres en español
-elegidos por el equipo en el TP1.
-
-Prueba de portabilidad (evaluada en la defensa oral):
-Cambiando únicamente este archivo por el de otro equipo, el proyecto completo
-debe poder ejecutarse contra la base de dicho equipo.
 """
 
 from typing import Dict, Any
 import pandas as pd
 
-# Diccionario canónico de Sakila -> Nombres específicos de la base del equipo
+# Diccionario canónico de Sakila -> Nombres específicos de la base sakila_es
 ESQUEMA: Dict[str, Any] = {
     "tablas": {
         "film": "pelicula",
