@@ -104,6 +104,8 @@ Las credenciales de acceso a la base de datos se configuran mediante variables d
    ```
    *(Si estás en Windows y utilizás autenticación integrada con tu cuenta de usuario, configurar `DB_TRUSTED_CONNECTION=yes`).*
 
+   Para una instancia con nombre, por ejemplo `LOLO_PC\SQLEXPRESS`, usar ese valor en `DB_SERVER` y dejar `DB_PORT` vacío. En SQL Server Configuration Manager, habilitar **TCP/IP** para esa instancia y reiniciar el servicio de SQL Server. Si la instancia usa un puerto dinámico, iniciar también el servicio **SQL Server Browser**; alternativamente, asignar un puerto TCP fijo y configurar `DB_SERVER` con el nombre del equipo y `DB_PORT` con ese puerto.
+
 ### 5. Verificar la conexión a SQL Server
 Ejecutar el script de verificación para validar la conectividad:
 ```bash
