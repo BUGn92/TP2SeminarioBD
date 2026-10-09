@@ -4,6 +4,7 @@ plan_implementacion_1.md
 Explicaciones_tp.md
 .env
 venv_tp2
+.vscode/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
