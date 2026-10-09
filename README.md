@@ -54,7 +54,7 @@ Antes de instalar las dependencias de Python, asegurarse de contar con el driver
 ### 1. Clonar el repositorio
 ```bash
 git clone https://github.com/BUGn92/TP2SeminarioBD.git
-cd "tp2 Bugnoni Zarate"
+cd TP2SeminarioBD
 ```
 
 ### 2. Crear y activar el entorno virtual (`venv_tp2`)
@@ -84,7 +84,14 @@ Con el entorno virtual activado (se observará `(venv_tp2)` en el prompt de la t
 pip install -r requirements.txt
 ```
 
-### 4. Configurar las credenciales de conexión (`.env`)
+### 4. Registrar el kernel de Jupyter
+Este paso es obligatorio para que el notebook reconozca el entorno virtual `venv_tp2`. Sin él, Jupyter no encontrará el kernel y no podrá ejecutar las celdas:
+```bash
+python -m ipykernel install --user --name=venv_tp2 --display-name "venv_tp2"
+```
+*(Solo es necesario hacerlo una vez por entorno virtual. Si más adelante creás un nuevo venv, repetir este comando con ese entorno activado).*
+
+### 5. Configurar las credenciales de conexión (`.env`)
 Las credenciales de acceso a la base de datos se configuran mediante variables de entorno locales:
 
 1. Crear el archivo `.env` a partir de la plantilla:
@@ -106,7 +113,7 @@ Las credenciales de acceso a la base de datos se configuran mediante variables d
 
    Para una instancia con nombre, por ejemplo `LOLO_PC\SQLEXPRESS`, usar ese valor en `DB_SERVER` y dejar `DB_PORT` vacío. En SQL Server Configuration Manager, habilitar **TCP/IP** para esa instancia y reiniciar el servicio de SQL Server. Si la instancia usa un puerto dinámico, iniciar también el servicio **SQL Server Browser**; alternativamente, asignar un puerto TCP fijo y configurar `DB_SERVER` con el nombre del equipo y `DB_PORT` con ese puerto.
 
-### 5. Verificar la conexión a SQL Server
+### 6. Verificar la conexión a SQL Server
 Ejecutar el script de verificación para validar la conectividad:
 ```bash
 python config_conexion.py
@@ -117,6 +124,17 @@ Si la configuración es correcta, la consola mostrará:
   - Base actual: sakila_es
   - Versión del motor: Microsoft SQL Server ...
 ```
+
+### 7. Abrir el notebook de análisis
+Con el entorno virtual activado y la conexión verificada:
+```bash
+jupyter notebook notebooks/analisis.ipynb
+```
+Si preferís Jupyter Lab:
+```bash
+jupyter lab
+```
+Una vez abierto el notebook, seleccionar el kernel **`venv_tp2`** en el menú `Kernel → Change Kernel`. Para re-ejecutar el notebook completo de arriba a abajo usar `Kernel → Restart & Run All`.
 
 ---
 
@@ -129,13 +147,13 @@ Si la configuración es correcta, la consola mostrará:
 ├── config_conexion.py      # Módulo de conexión a SQL Server con SQLAlchemy y pyodbc
 ├── esquema.py              # Diccionario de mapeo canónico y resolución de consultas
 ├── sql/
-│   ├── reconciliacion.sql  # Script de reconciliación de datos
-│   └── conjunto_trabajo.sql# Consulta base del conjunto de trabajo
+│   ├── reconciliacion.sql  # Script de reconciliación de filas (Actividad 0)
+│   └── conjunto_trabajo.sql# Consulta base del conjunto de trabajo (Actividad 1)
 ├── notebooks/
-│   └── analisis.ipynb      # Notebook con perfilado de calidad y análisis exploratorio
-├── pipeline/
+│   └── analisis.ipynb      # Actividades 1–3: integración SQL-Python, calidad y análisis
+├── pipeline/               # (se genera en Actividad 4)
 │   ├── pipeline_tp2.py     # Script ETL autónomo e idempotente
-│   └── datos/              # Archivos complementarios del pipeline
-├── graficos/               # Exportaciones de gráficos en alta resolución (150 DPI)
-└── informe/                # Entregables técnicos y documentación de soporte
+│   └── datos/              # Archivo plano complementario del pipeline
+├── graficos/               # (se genera en Actividad 3) PNG a 150 DPI
+└── informe/                # (se genera en Actividad 5) PDF + anexo IA
 ```
