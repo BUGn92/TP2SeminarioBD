@@ -25,7 +25,11 @@ def obtener_cadena_conexion() -> str:
     trust_cert = os.getenv("DB_TRUST_SERVER_CERTIFICATE", "yes")
 
     # Formato de servidor con puerto
-    servidor_completo = f"{server},{port}" if port and "," not in server else server
+    servidor_completo = (
+        f"{server},{port}"
+        if port and "," not in server and "\\" not in server
+        else server
+    )
 
     if trusted_connection:
         params = (
