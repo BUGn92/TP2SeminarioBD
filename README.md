@@ -153,7 +153,41 @@ Una vez abierto el notebook, seleccionar el kernel **`venv_tp2`** en el menú `K
 │   └── analisis.ipynb      # Actividades 1–3: integración SQL-Python, calidad y análisis
 ├── pipeline/               # (se genera en Actividad 4)
 │   ├── pipeline_tp2.py     # Script ETL autónomo e idempotente
-│   └── datos/              # Archivo plano complementario del pipeline
+│   ├── datos/
+│   │   └── clasificacion_tarifaria.csv
+│   └── evidencia_ejecuciones.log
 ├── graficos/               # (se genera en Actividad 3) PNG a 150 DPI
 └── informe/                # (se genera en Actividad 5) PDF + anexo IA
 ```
+
+## Actividad 4: Pipeline ETL
+
+Desde la carpeta `TP2SeminarioBD`, ejecutar dos veces seguidas:
+
+```powershell
+python pipeline\pipeline_tp2.py
+python pipeline\pipeline_tp2.py
+```
+
+El script extrae el conjunto de trabajo agregado de SQL Server, valida las
+reglas de calidad documentadas en `Diagnostico_actividad_2.md`, calcula las
+métricas de recupero y marca las películas sin inventario. No descarta ni
+imputa películas y conserva los ingresos atípicos, tal como se justificó en la
+Actividad 2.
+
+El archivo `pipeline\datos\clasificacion_tarifaria.csv` aporta una clasificación
+propia y complementaria por escalón de tarifa (`Economica`, `Estandar` y
+`Premium`), integrada con el origen mediante `merge` y validación
+`many_to_one`. Los tres valores corresponden a los niveles de precio observados
+en el diagnóstico.
+
+El destino es `dbo.TP2_RecuperoPorPelicula`, con `film_id` como clave primaria.
+Cada carga reemplaza el snapshot completo dentro de una única transacción
+(`DELETE` e inserción); por ello, una falla revierte la carga y volver a ejecutar
+el proceso no duplica filas. El script crea la tabla si no existe y detiene la
+carga si encuentra un esquema incompatible.
+
+La evidencia de cada ejecución queda registrada en
+`pipeline\evidencia_ejecuciones.log`. Al final de cada carga se registra la
+consulta `SELECT COUNT(*)` junto al conteo de claves distintas para contrastar
+el resultado de ejecuciones consecutivas.
