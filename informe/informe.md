@@ -1,8 +1,7 @@
 # Informe Final de Conclusiones — Trabajo Práctico 2
 **Materia:** Seminario de Actualización | **Docente:** Jorge Insfran  
-**Unidad 5:** Introducción a Data Analytics e Ingeniería de Datos  
 **Equipo:** 6 | **Integrantes:** Agustin Bugnoni, Lorenzo Zárate  
-**Variante Asignada:** Variante 6 — Precios, recupero y rentabilidad del catálogo  
+**Variante:** 6 — Precios, recupero y rentabilidad del catálogo  
 
 ---
 
@@ -12,137 +11,126 @@
 > *¿Cada película recupera lo que costó reponerla? ¿El precio de alquiler tiene relación con la demanda?*
 
 ### Abordaje Metodológico
-Para responder a esta pregunta, se articuló un flujo de trabajo integral entre **Microsoft SQL Server** y **Python (Pandas, NumPy, Matplotlib, Seaborn)**, dividido en tres ejes analíticos fundamentales:
+Para responder a esta problemática, estructuramos un flujo de trabajo entre **Microsoft SQL Server** y **Python (Pandas, NumPy, Matplotlib, Seaborn)**, dividido en tres ejes analíticos:
 
-1. **Evaluación de la Elasticidad y Sensibilidad Precio-Demanda:**
-   Se analizó la relación entre la tarifa unitaria de alquiler (`rental_rate`) y el volumen físico de demanda (`rental_count`). Mediante el cálculo del coeficiente de correlación lineal de Pearson y Spearman, complementado con diagramas de dispersión de burbujas ponderados por recaudación acumulada (`total_revenue`), se contrastó la hipótesis económica tradicional de demanda decreciente frente a las particularidades de consumo del videoclub.
-2. **Análisis Financiero de Recupero Unitario y Amortización por Título:**
-   Se modeló la rentabilidad a nivel lote de inventario por título cinematográfico, contrastando el ingreso bruto generado contra el costo total de reposición de las copias físicas adquiridas:
-   $$\text{costo\_inventario\_total} = \text{inventory\_count} \times \text{replacement\_cost}$$
-   $$\text{ratio\_recupero} = \frac{\text{total\_revenue}}{\text{costo\_inventario\_total}}$$
-   Se definió el umbral crítico de **Break-Even** en $1.0\times$ (amortización completa de la inversión). Adicionalmente, se calculó la exigencia física de rotación para cada película:
-   $$\text{breakeven\_alquileres} = \left\lceil \frac{\text{replacement\_cost}}{\text{rental\_rate}} \right\rceil$$
-3. **Costo de Oportunidad y Eficiencia del Catálogo:**
-   Se identificó el impacto comercial de los títulos presentes en el catálogo pero desprovistos de stock físico (`inventory_count = 0`), evaluando su potencial de monetización desaprovechado.
+1. **Sensibilidad y Elasticidad Precio-Demanda:** Contrastamos la tarifa unitaria de alquiler (`rental_rate`) contra el volumen físico de rotación (`rental_count`) mediante correlaciones lineales (Pearson, Spearman) y diagramas de dispersión ponderados por facturación acumulada (`total_revenue`).
+2. **Análisis Financiero de Recupero y Break-Even por Lote:** Modelamos la amortización a nivel título contrastando ingresos brutos contra el costo total de adquisición del lote físico:
+   $$\text{costo\_total} = \text{inventory\_count} \times \text{replacement\_cost} \quad\Big|\quad \text{ratio\_recupero} = \frac{\text{total\_revenue}}{\text{costo\_total}}$$
+   Fijamos el umbral de equilibrio en $1.0\times$ (amortización completa) y calculamos la rotación mínima exigida: $\text{breakeven\_alquileres} = \lceil \frac{\text{replacement\_cost}}{\text{rental\_rate}} \rceil$.
+3. **Costo de Oportunidad y Eficiencia de Inventario:** Cuantificamos el impacto económico de los títulos catalogados desprovistos de stock físico (`inventory_count = 0`).
 
 ---
 
 ## 2. Decisiones de Diseño Técnico
 
-### 2.1 Reparto de Trabajo entre SQL Server y Python
-Siguiendo las buenas prácticas de arquitectura de datos (Unidad 5), se delimitó estrictamente qué resuelve el motor de base de datos y qué resuelve el cliente de análisis:
+### 2.1 Reparto de Cómputo entre SQL Server y Python
+Delimitamos la arquitectura distribuyendo la carga de procesamiento según la especialización de cada capa:
 
 * **En el Motor de Base de Datos (SQL Server):**
-  * **Resolución de Joins Complejos:** Se procesó la cadena relacional canónica `pelicula` $\rightarrow$ `inventario` $\rightarrow$ `alquiler` $\rightarrow$ `pago`.
-  * **Preservación Exhaustiva del Catálogo (`LEFT JOIN`):** Se evitó terminantemente el uso de `INNER JOIN`. En Sakila existen 42 títulos sin copias en inventario; un `INNER JOIN` los habría descartado silenciosamente. El `LEFT JOIN` preserva las 1.000 películas del universo catalogado.
-  * **Agregaciones Pesadas en Origen:** Conteo de inventario (`COUNT(DISTINCT inventory_id)`), conteo de transacciones (`COUNT(rental_id)`) y suma de recaudación (`ISNULL(SUM(amount), 0.0)`). Esto evitó traficar más de 32.000 registros crudos por la red hacia la memoria de Python.
+  * **Resolución relacional pesada:** Procesamiento de la cadena `pelicula` $\rightarrow$ `inventario` $\rightarrow$ `alquiler` $\rightarrow$ `pago` optimizada por índices agrupados.
+  * **Preservación exhaustiva del catálogo (`LEFT JOIN`):** Se descartó terminantemente el uso de `INNER JOIN`. En Sakila, 42 películas no poseen copias registradas; un `INNER JOIN` las habría eliminado silenciosamente. El `LEFT JOIN` preserva el universo íntegro de 1.000 títulos.
+  * **Agregaciones en origen:** Computación directa de `COUNT(DISTINCT inventory_id)`, `COUNT(rental_id)` y `ISNULL(SUM(amount), 0.0)`, reduciendo la transferencia de red de más de 32.000 transacciones crudas a un dataset agregado de 1.000 registros.
 * **En el Cliente de Análisis (Python / Pandas):**
-  * **Cálculo de Métricas Derivadas Vectorizadas:** Operaciones de ratios y umbrales con NumPy (`np.where`, `np.select`, `np.ceil`). Quedó prohibido el uso de iteraciones con bucles `for` o `iterrows()`, penalizadas por ineficiencia algorítmica.
-  * **Manejo Seguro de Casos de Borde:** Tratamiento condicional de divisiones por cero para las películas sin copias (`inventory_count = 0`), asignándoles ingreso por copia de $0.00 y ratio de recupero de $0.00$.
-  * **Enriquecimiento Multi-Fuente:** Cruce mediante `merge` con archivos planos de clasificación comercial.
+  * **Cálculo vectorizado de ratios:** Implementación con primitivas de NumPy (`np.where`, `np.select`, `np.ceil`), asegurando complejidad temporal $O(N)$ y descartando bucles `iterrows()` por ineficiencia de memoria.
+  * **Manejo defensivo de casos de borde:** Tratamiento condicional para títulos sin copias (`inventory_count = 0`), asignando ratios de recupero en $0.00$ sin generar excepciones de división por cero.
+  * **Enriquecimiento multi-origen:** Fusión controlada (`pd.merge`) con datos planos complementarios de clasificación comercial.
 
 ### 2.2 Elección del Controlador de Conexión (`pyodbc`)
-Se seleccionó **`pyodbc`** sobre SQLAlchemy en lugar de conectores alternativos por tres motivos:
-1. **Estándar Corporativo y Compatibilidad ODBC:** Interactúa de forma nativa con el controlador oficial *Microsoft ODBC Driver 18 for SQL Server*, asegurando máxima fidelidad en tipos de datos migrados (`DATETIME2`, `DECIMAL(5,2)` monetario exacto).
-2. **Soporte de Inserción Masiva Optimizada:** Habilita el parámetro `fast_executemany=True` para acelerar drásticamente los tiempos de carga en el pipeline ETL.
-3. **Seguridad y Cero Credenciales en Código:** La conexión se establece parametrizada consumiendo variables de entorno locales protegidas (`.env`), garantizando que ninguna contraseña ni host quede expuesto en el repositorio.
+Adoptamos **`pyodbc`** sobre SQLAlchemy por tres ventajas operativas:
+1. **Fidelidad estricta de tipos:** Interacción nativa con *Microsoft ODBC Driver 18*, asegurando serialización exacta de tipos migrados (`DECIMAL(5,2)` monetario de punto fijo y `DATETIME2`), evitando divergencias de redondeo propias del punto flotante en cálculos contables.
+2. **Inserción masiva de alto rendimiento:** Soporte nativo para el parámetro `fast_executemany=True` en SQLAlchemy, reduciendo los tiempos de carga en la etapa ETL.
+3. **Seguridad y parametrización:** Conexión desacoplada mediante variables de entorno locales protegidas (`.env`), eliminando credenciales expuestas en el repositorio.
 
-### 2.3 Portabilidad Total mediante `esquema.py`
-Para cumplir la exigencia de desacoplamiento (evaluada en la defensa oral), no se escribieron nombres de tablas ni columnas en español de forma rígida en el código. El módulo `esquema.py` actúa como diccionario de traducción canónico bidireccional. La consulta de extracción se construye mediante `generar_query_conjunto_trabajo()`, garantizando que cambiando únicamente `esquema.py`, el proyecto se ejecuta sin modificaciones contra la base migrada por cualquier otro equipo.
+### 2.3 Desacoplamiento de Esquema y Portabilidad (`esquema.py`)
+Para independizar la lógica de extracción del esquema físico de tablas y columnas (renombradas al español en el TP1), diseñamos `esquema.py` como una capa de abstracción de metadatos. El módulo provee un diccionario bidireccional y la función constructora `generar_query_conjunto_trabajo()`, resolviendo los identificadores de la consulta en tiempo de ejecución. Esta arquitectura garantiza independencia del modelo físico subyacente y permite ejecutar el pipeline sobre esquemas con distinta convención de nombres sin modificar la lógica analítica. Los parámetros de filtrado dinámico se inyectan estrictamente mediante el argumento `params` de `pd.read_sql`, previniendo inyecciones SQL.
 
-### 2.4 Criterios de Limpieza y Estrategia de Carga Idempotente (ETL)
-* **Criterios de Limpieza:** Se aplicaron aserciones estrictas de calidad (`validar_calidad`) previas a la transformación.
-* **Estrategia de Carga Idempotente:** En el pipeline ETL (`pipeline_tp2.py`), se implementó la estrategia transaccional *Truncate-and-Load* atómica dentro de `with engine.begin() as connection:`. Previo a la inserción masiva (`to_sql` con `if_exists='append'`), se ejecuta un `DELETE FROM dbo.TP2_RecuperoPorPelicula`. Si ocurre cualquier error, la transacción revierte automáticamente (`ROLLBACK`). Ejecutar el pipeline consecutivas veces garantiza exactamente 1.000 filas finales verificadas con `SELECT COUNT(*)`, erradicando el riesgo de duplicación.
+### 2.4 Criterios de Calidad y Carga Transaccional Idempotente
+* **Validación previa (Fail-Fast):** La función `validar_calidad()` audita aserciones críticas (no vacíos, unicidad de claves, tarifas positivas y rangos válidos) antes de iniciar las transformaciones.
+* **Idempotencia transaccional (Truncate-and-Load):** En `pipeline/pipeline_tp2.py`, la carga se ejecuta dentro del contexto transaccional `with engine.begin() as connection:`. Previo al `to_sql(..., if_exists='append')`, se ejecuta un `DELETE` controlado sobre `dbo.TP2_RecuperoPorPelicula`. Si ocurre una falla a mitad del proceso, la transacción realiza un `ROLLBACK` automático, impidiendo estados corruptos o inconsistentes. Dos o más ejecuciones sucesivas dejan exactamente 1.000 registros verificados con aserciones poscarga de `COUNT` total y `COUNT DISTINCT`.
 
 ---
 
 ## 3. Síntesis del Diagnóstico de Calidad de Datos
 
-El perfilado sistemático sobre el conjunto de trabajo de 1.000 películas evaluó las 6 dimensiones de calidad de la Unidad 5:
+Evaluamos las seis dimensiones formales de calidad sobre el conjunto de trabajo (1.000 películas):
 
-| Dimensión | Evaluación en el Dataset | Impacto sobre las Conclusiones |
+| Dimensión | Evaluación en el Dataset | Impacto Metodológico |
 | :--- | :--- | :--- |
-| **Completitud** | 100% completo (0 valores faltantes en todas las columnas). | Las ausencias transaccionales fueron absorbidas en origen con `ISNULL(..., 0.0)`. |
-| **Unicidad** | 1.000 registros únicos sobre la clave primaria de negocio `film_id`. | Garantiza que ninguna película esté duplicada ni subrepresentada. |
-| **Validez** | Cumplimiento total de reglas de negocio: `rental_rate > 0`, `replacement_cost > rental_rate`. | No existen anomalías de formato ni inconsistencias lógicas en el dominio. |
-| **Consistencia** | La variable categórica `rating` presenta exactamente 5 categorías canónicas. | No se requirió limpieza ortográfica ni unificación de texto. |
-| **Exactitud** | Reconciliación al 100% entre agregaciones T-SQL en el motor y Pandas en Python. | Certeza matemática plena sobre la veracidad de los datos analizados. |
-| **Oportunidad** | Cobertura temporal histórica completa de la actividad transaccional del videoclub. | Apto para evaluar la amortización histórica del catálogo. |
+| **Completitud** | 100% completo (0 nulos en las 9 columnas). | Ausencias transaccionales absorbidas en origen con `ISNULL(..., 0.0)`. |
+| **Unicidad** | 1.000 registros únicos sobre la clave `film_id`. | Cobertura exacta y biunívoca del catálogo catalogado. |
+| **Validez** | 100% cumplimiento de reglas: `rental_rate > 0`, `replacement_cost > rental_rate`. | Datos coherentes con las restricciones lógicas del dominio. |
+| **Consistencia** | Variable categórica `rating` con exactamente 5 categorías canónicas. | Sin anomalías ortográficas ni necesidad de normalización de strings. |
+| **Exactitud** | Reconciliación matemática plena entre agregaciones en SQL Server y Pandas. | Consistencia numérica absoluta en ingresos y rotaciones. |
+| **Oportunidad** | Cobertura temporal histórica consolidada del videoclub. | Datos aptos para determinar la amortización acumulada de activos. |
 
-### Hallazgo Crítico de Calidad: Cardinalidad de Precios
-La variable `rental_rate` solo asume **3 valores discretos**: **\$0.99 (34.1%)**, **\$2.99 (32.3%)** y **\$4.99 (33.6%)**.  
-*Impacto metodológico:* **Invalida el cálculo de elasticidades continuas clásicas.** No es posible trazar una curva de demanda continua ni calcular derivadas marginales. La realidad de los datos condiciona a formular el análisis como una **comparación inter-estratos** entre tres políticas tarifarias discretas.
+### Hallazgo Crítico de Calidad: Cardinalidad Discreta de Precios
+La variable `rental_rate` asume exclusivamente **3 valores discretos**: **\$0.99 (34.1%)**, **\$2.99 (32.3%)** y **\$4.99 (33.6%)**.  
+*Impacto en el análisis:* **Invalida el ajuste de curvas de demanda continuas** y el cálculo de elasticidades puntuales ($\frac{\%\Delta Q}{\%\Delta P}$). La distribución uniforme obliga a estructurar las conclusiones como una **comparación inter-estratos discretos**.
 
 ### Tratamiento Justificado de Outliers (Regla IQR de Tukey sobre Ingresos)
-Se detectaron 11 películas consideradas *outliers superiores* con ingresos superiores al umbral estadístico (\$181.80), lideradas por *TELEGRAPH VOYAGE* (\$231.73).  
-*Decisión justificada:* **NO SE ELIMINAN.** En analítica de negocios, los valores atípicos superiores representan los títulos *blockbuster* de alta rotación legítima. Descartarlos por motivos puramente estadísticos mutilaría los casos de mayor éxito comercial del negocio, sesgando gravemente las conclusiones de rentabilidad.  
-Asimismo, las 42 películas con ingreso \$0.00 se conservaron etiquetadas bajo la categoría *"Sin inventario"*.
+Se detectaron 11 películas con ingresos superiores al umbral de Tukey (\$181.80), lideradas por *TELEGRAPH VOYAGE* (\$231.73).  
+*Criterio adoptado:* **Se conservan en su totalidad.** En analítica de negocios, los outliers superiores representan títulos *blockbuster* de rotación legítima. Eliminarlos introduciría un sesgo de supervivencia y subestimaría la rentabilidad real. Asimismo, las 42 películas con facturación \$0.00 se preservaron bajo la etiqueta *"Sin inventario"*.
 
 ---
 
 ## 4. Hallazgos Narrativos y Toma de Decisiones
 
-### Hallazgo 1 — Inelasticidad Perfecta: El precio no explica la demanda
+### Hallazgo 1 — Inelasticidad de Demanda: El precio unitario no condiciona el volumen
 ![Gráfico 1 — Dispersión Precio vs Demanda](../graficos/g1_precio_vs_demanda_burbuja.png)
 
-* **Qué se observa:** Los tres estratos de precio presentan promedios y distribuciones de demanda física prácticamente idénticos:
+* **Observación:** Los tres estratos de precio presentan promedios y dispersiones de rotación física casi idénticos:
   $$\bar{Q}_{\$0.99} = 17.3 \text{ alquileres} \quad|\quad \bar{Q}_{\$2.99} = 16.4 \text{ alquileres} \quad|\quad \bar{Q}_{\$4.99} = 16.5 \text{ alquileres}$$
-  El coeficiente de correlación lineal de Pearson entre tarifa y cantidad de alquileres es nulo:
-  $$r = -0.053 \quad (p = 0.100 > 0.05)$$
-* **Qué lo explica:** La demanda de alquiler de películas es inelástica respecto al precio unitario dentro del rango de \$0.99 a \$4.99. La decisión del cliente de alquilar un título está motivada por factores no tarifarios (género, actores, popularidad, exhibición destacada o disponibilidad en estantería). Los clientes no alquilan más copias por pagar \$0.99 ni se inhiben de consumir por abonar \$4.99.
-* **Qué decisión de negocio habilita:** **Reestructurar de inmediato la política tarifaria eliminando el piso de \$0.99.** El catálogo debe migrarse hacia tarifas de \$2.99 y \$4.99, dado que no existe riesgo empírico de contracción en el volumen de demanda.
+  La correlación lineal de Pearson es estadísticamente nula: $r = -0.053$ ($p = 0.100 > 0.05$).
+* **Explicación:** La demanda es inelástica en el rango de \$0.99 a \$4.99. La decisión de alquiler está regida por factores no tarifarios (género, actores, exhibición o disponibilidad). El cliente no incrementa su consumo por una tarifa de \$0.99 ni se inhibe de alquilar ante un precio de \$4.99.
+* **Decisión comercial:** **Eliminar la tarifa piso de \$0.99 y migrar el catálogo hacia \$2.99 y \$4.99.** Dado que la demanda no se contrae con el precio, la migración incrementa los ingresos brutos de forma directa.
 
 ---
 
-### Hallazgo 2 — El precio define la velocidad de recupero, no el volumen (Lección de Anscombe)
+### Hallazgo 2 — El precio determina la velocidad de amortización, no la demanda
 ![Gráfico 2 — Boxplot Ratio de Recupero](../graficos/g2_boxplot_ratio_recupero.png)
 ![Gráfico 3 — Cuarteto de Anscombe y Pendientes de Amortización](../graficos/g3_anscombe_recupero_por_precio.png)
 
-* **Qué se observa:** Aunque los tres grupos rotan a una velocidad similar (~3.5 alquileres por copia física), la eficiencia de amortización presenta un desacople estructural extremo:
-  * A **\$4.99**, el break-even promedio exige solo **4.6 alquileres/copia**, alcanzando una **tasa de éxito de recupero del 58.4%** con una pendiente de retorno de **$+0.335\times$ por alquiler**.
-  * A **\$0.99**, el break-even exige **21.4 alquileres/copia**, y la tasa de éxito colapsa al **3.4%** con una pendiente de apenas **$+0.151\times$**.
-* **Qué lo explica:** El costo de reposición promedio de los títulos es homogéneo en todo el catálogo (~$20 por copia), independientemente de la tarifa asignada. Por lo tanto, fijar una tarifa de \$0.99 impone una barrera física insalvable: una película necesitaría circular más de 20 veces por copia para amortizarse, superando el ciclo de vida útil del soporte físico antes de su desgaste.
-* **Qué decisión de negocio habilita:** **Prohibir la adquisición de nuevo inventario para títulos tarifados a \$0.99.** Toda compra futura de copias físicas debe asignarse exclusivamente a títulos listados a \$2.99 o \$4.99 para garantizar la viabilidad del capital invertido.
+* **Observación:** Pese a registrar una rotación promedio similar (~3.5 alquileres por copia), el recupero exhibe una divergencia crítica:
+  * A **\$4.99**, el break-even promedio exige **4.6 alquileres/copia**, alcanzando una **tasa de recupero del 58.4%** con una pendiente de amortización de **$+0.335\times$ por alquiler**.
+  * A **\$0.99**, el break-even asciende a **21.4 alquileres/copia**, colapsando la tasa de recupero al **3.4%** con una pendiente de apenas **$+0.151\times$**.
+* **Explicación:** El costo de reposición es homogéneo en todo el catálogo (~$20 por título), independientemente del precio de alquiler. Fijar \$0.99 impone una exigencia física de rotación que excede la vida útil del soporte antes de su desgaste.
+* **Decisión comercial:** **Congelar compras de copias para títulos de \$0.99.** La inversión en nuevo inventario debe concentrarse en títulos tarifados a \$2.99 y \$4.99 para garantizar tasas de amortización viables.
 
 ---
 
-### Hallazgo 3 — El 4.2% del catálogo sin inventario representa un costo de oportunidad inmediato
-* **Qué se observa:** Existen **42 películas registradas en catálogo con 0 copias en inventario** (`inventory_count = 0`), acumulando \$0.00 de ingresos.
-* **Qué lo explica:** Su recaudación nula no responde al rechazo del consumidor ni a obsolescencia temática, sino a un quiebre estructural de stock: nunca estuvieron disponibles físicamente en las sucursales.
-* **Qué decisión de negocio habilita:** **Aprobar la compra de un lote inicial de 3 a 4 copias para cada uno de los 42 títulos faltantes, listándolos a tarifa premium de \$4.99.** Dado el comportamiento inelástico demostrado en el Hallazgo 1, estos títulos generarán una recaudación estimada de ~$60 a $70 por película, amortizando su inversión inicial en menos de 5 alquileres por copia.
+### Hallazgo 3 — El 4.2% del catálogo sin stock constituye un costo de oportunidad directo
+* **Observación:** Existen **42 títulos en catálogo con 0 copias en inventario**, acumulando \$0.00 de facturación.
+* **Explicación:** Su facturación nula no refleja rechazo del público ni obsolescencia, sino un quiebre de stock en origen: nunca estuvieron físicamente disponibles en sucursal.
+* **Decisión comercial:** **Incorporar un lote inicial de 3 a 4 copias para estos 42 títulos bajo tarifa de \$4.99.** Ante la inelasticidad comprobada, generarán un ingreso estimado de ~$60–$70 por película, amortizándose en menos de 5 transacciones por copia.
 
 ---
 
 ## 5. Limitaciones del Análisis
 
-En cumplimiento con los estándares de rigor y honestidad analítica exigidos por la cátedra (Unidad 5), se reconocen las siguientes limitaciones intrínsecas del conjunto de datos y del modelo:
+Como en todo análisis empírico sobre modelos transaccionales relacionales, identificamos cuatro restricciones metodológicas:
 
-1. **Incapacidad de Modelar Curvas de Demanda Continuas:**
-   Como se demostró en el diagnóstico de calidad, la tarifa de alquiler toma únicamente 3 valores fijos discretos (\$0.99, \$2.99, \$4.99). Por ende, **está metodológicamente prohibido afirmar conclusiones sobre elasticidad-precio continua**. No se puede estimar qué ocurriría si se fijasen precios intermedios (\$1.50, \$3.50) o superiores (\$6.99).
-2. **Presencia de Variables Omitidas Críticas:**
-   El modelo relacional Sakila no registra variables cualitativas cruciales del consumidor: preferencias de género, elenco de actores, campañas publicitarias de la época, ubicación geográfica de la tienda, ni visibilidad física en la estantería del local. No se puede afirmar que el precio *cause* la demanda ni descartar factores de confusión (*confounding factors*).
-3. **Omisión de Costos Operativos y Logísticos:**
-   La métrica de recupero contempla exclusivamente el costo de reposición física del disco (`replacement_cost`). No se computan los costos de almacenamiento en tienda, salarios del personal, comisiones ni deterioro por daño físico de las cintas/discos. El ratio de recupero representa un margen de amortización bruto, no el beneficio contable neto de la empresa.
-4. **Ausencia de Dinámica Temporal y Canibalización:**
-   El dataset consolida un corte histórico acumulado sin distinguir la estacionalidad de los alquileres ni registrar el efecto de canibalización entre títulos de estreno y títulos de catálogo antiguo.
+1. **Imposibilidad de inferencia continua:** Al existir sólo 3 precios discretos, es metodológicamente inválido proyectar curvas continuas o estimar la respuesta del mercado ante tarifas intermedias (\$1.99, \$3.49) o superiores (\$6.99).
+2. **Sesgo de variable omitida (*Omitted Variable Bias*):** El modelo no captura variables de preferencia (género, elenco, campañas publicitarias o ubicación en tienda). Por ende, el precio no puede interpretarse como causa aislada de la demanda.
+3. **Margen de amortización bruto:** El cálculo considera el costo de reposición (`replacement_cost`), omitiendo costos operativos (almacenamiento, personal, deterioro físico). Representa amortización de activo, no beneficio contable neto.
+4. **Corte transversal estático:** El análisis consolida el histórico transaccional acumulado sin distinguir estacionalidad ni efectos de canibalización temporal.
 
 ---
 
-## 6. Dificultades Encontradas y Soluciones Implementadas
+## 6. Dificultades Técnicas y Soluciones Implementadas
 
-1. **Configuración Heterogénea de Controladores ODBC en Entornos Linux/Windows:**
-   * *Problema:* Al ejecutar la conexión en entornos Linux mediante `pyodbc`, surgían errores de enlace dinámico por la ausencia de las librerías compartidas de `unixodbc`.
-   * *Solución:* Se estandarizó la resolución del entorno documentando en el `README.md` la instalación de `msodbcsql18` y la configuración de `ODBC Driver 18 for SQL Server` con `TrustServerCertificate=yes` y `autocommit=True`.
-2. **Preservación de Títulos sin Inventario y División por Cero:**
-   * *Problema:* Al calcular las métricas unitarias (`total_revenue / inventory_count`), las 42 películas con stock cero generaban indeterminaciones matemáticas (`ZeroDivisionError` o `NaN`/`inf`).
-   * *Solución:* Se descartó cualquier filtrado prematuro y se implementó lógica condicional vectorizada con `numpy.where(inventory_count > 0, ..., 0.0)`, etiquetándolas rigurosamente como *"Sin inventario"*.
-3. **Garantía de Idempotencia en la Carga Masiva:**
-   * *Problema:* La instrucción `TRUNCATE TABLE` podía fallar ante restricciones de claves foráneas o permisos en esquemas corporativos, mientras que inserciones consecutivas duplicaban el volumen de filas.
-   * *Solución:* Se adoptó una transacción atómica controlada (`DELETE FROM` transaccional seguido de `to_sql` con verificación poscarga de conteo de filas y unicidad de clave primaria), asegurando que cualquier fallo revierta el estado sin dejar datos corruptos.
-4. **Portabilidad de Esquemas para la Defensa Oral:**
-   * *Problema:* El acoplamiento de nombres traducidos al español impedía que el código corriera en bases de otros equipos.
-   * *Solución:* Se diseñó el módulo dinámico `esquema.py`, abstrayendo la traducción de identificadores y parametrizando las consultas de manera segura.
+1. **Enlace dinámico ODBC en entornos heterogéneos (Linux/Windows):**
+   * *Problema:* En Linux, `pyodbc` fallaba por ausencia de dependencias de `unixodbc`.
+   * *Solución:* Se estandarizó el entorno documentando la instalación de librerías nativas y configurando la conexión con `TrustServerCertificate=yes` y `autocommit=True`.
+2. **Indeterminaciones por títulos sin inventario:**
+   * *Problema:* Las 42 películas sin copias generaban divisiones por cero (`ZeroDivisionError` / `inf`) al computar métricas por copia.
+   * *Solución:* Implementamos lógica condicional vectorizada con `np.where(inventory_count > 0, ..., 0.0)`, preservando la integridad del catálogo bajo la categoría *"Sin inventario"*.
+3. **Idempotencia y atomicidad en la carga masiva:**
+   * *Problema:* `TRUNCATE TABLE` generaba bloqueos por dependencias foráneas, mientras que cargas repetidas duplicaban filas.
+   * *Solución:* Implementamos una transacción atómica con `DELETE` previo e inserción masiva (`to_sql`), auditada por aserciones poscarga de conteo y unicidad.
+4. **Desacoplamiento de identificadores físicos:**
+   * *Problema:* Hardcodear nombres traducidos al español acoplaba el código a una base específica.
+   * *Solución:* Aislamos los nombres en el módulo `esquema.py` y parametrizamos dinámicamente las consultas SQL.
 
 ---
-**Trabajo Práctico 2 — Seminario de Actualización 2026**  
-*Equipo 6: Precios, recupero y rentabilidad del catálogo.*
+**Equipo 6 — Seminario de Actualización 2026**  
+Agustin Bugnoni — Lorenzo Zárate
