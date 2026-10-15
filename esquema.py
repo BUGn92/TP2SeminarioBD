@@ -26,6 +26,43 @@ ESQUEMA: Dict[str, Any] = {
         "address": "direccion"
     },
     "columnas": {
+        "actor": {
+            "actor_id": "id_actor",
+            "first_name": "nombre",
+            "last_name": "apellido",
+            "last_update": "ultima_actualizacion"
+        },
+        "category": {
+            "category_id": "id_categoria",
+            "name": "nombre",
+            "last_update": "ultima_actualizacion"
+        },
+        "language": {
+            "language_id": "id_idioma",
+            "name": "nombre",
+            "last_update": "ultima_actualizacion"
+        },
+        "country": {
+            "country_id": "id_pais",
+            "country": "pais",
+            "last_update": "ultima_actualizacion"
+        },
+        "city": {
+            "city_id": "id_ciudad",
+            "city": "ciudad",
+            "country_id": "id_pais",
+            "last_update": "ultima_actualizacion"
+        },
+        "address": {
+            "address_id": "id_direccion",
+            "address": "direccion",
+            "address2": "direccion2",
+            "district": "distrito",
+            "city_id": "id_ciudad",
+            "postal_code": "codigo_postal",
+            "phone": "telefono",
+            "last_update": "ultima_actualizacion"
+        },
         "film": {
             "film_id": "id_pelicula",
             "title": "titulo",
@@ -39,6 +76,36 @@ ESQUEMA: Dict[str, Any] = {
             "replacement_cost": "costo_reemplazo",
             "rating": "clasificacion",
             "special_features": "caracteristicas_especiales",
+            "last_update": "ultima_actualizacion"
+        },
+        "store": {
+            "store_id": "id_tienda",
+            "manager_staff_id": "id_gerente_personal",
+            "address_id": "id_direccion",
+            "last_update": "ultima_actualizacion"
+        },
+        "staff": {
+            "staff_id": "id_personal",
+            "first_name": "nombre",
+            "last_name": "apellido",
+            "address_id": "id_direccion",
+            "email": "correo_electronico",
+            "store_id": "id_tienda",
+            "active": "activo",
+            "username": "nombre_usuario",
+            "password": "contrasena",
+            "last_update": "ultima_actualizacion",
+            "picture": "foto"
+        },
+        "customer": {
+            "customer_id": "id_cliente",
+            "store_id": "id_tienda",
+            "first_name": "nombre",
+            "last_name": "apellido",
+            "email": "correo_electronico",
+            "address_id": "id_direccion",
+            "active": "activo",
+            "create_date": "fecha_creacion",
             "last_update": "ultima_actualizacion"
         },
         "inventory": {
@@ -65,9 +132,9 @@ ESQUEMA: Dict[str, Any] = {
             "payment_date": "fecha_pago",
             "last_update": "ultima_actualizacion"
         },
-        "category": {
-            "category_id": "id_categoria",
-            "name": "nombre",
+        "film_actor": {
+            "actor_id": "id_actor",
+            "film_id": "id_pelicula",
             "last_update": "ultima_actualizacion"
         },
         "film_category": {
@@ -159,3 +226,51 @@ def generar_query_conjunto_trabajo() -> str:
         f.[{f_rating}];
     """
     return query
+
+
+def generar_query_ingresos_por_pelicula() -> str:
+    """Genera la consulta de contraste SQL usando el esquema configurado."""
+    return f"""
+    SELECT
+        f.[{c("film", "film_id")}] AS film_id,
+        ISNULL(SUM(p.[{c("payment", "amount")}]), 0.0) AS total_revenue
+    FROM [{t("film")}] f
+    LEFT JOIN [{t("inventory")}] i
+        ON f.[{c("film", "film_id")}] = i.[{c("inventory", "film_id")}]
+    LEFT JOIN [{t("rental")}] r
+        ON i.[{c("inventory", "inventory_id")}] = r.[{c("rental", "inventory_id")}]
+    LEFT JOIN [{t("payment")}] p
+        ON r.[{c("rental", "rental_id")}] = p.[{c("payment", "rental_id")}]
+    GROUP BY f.[{c("film", "film_id")}]
+    ORDER BY f.[{c("film", "film_id")}];
+    """
+
+
+def generar_query_reconciliacion() -> str:
+    """Genera el conteo de filas por tabla, aplicando los nombres del esquema."""
+    filas_origen = {
+        "actor": 200,
+        "category": 16,
+        "language": 6,
+        "country": 109,
+        "city": 600,
+        "address": 603,
+        "film": 1000,
+        "film_actor": 5462,
+        "film_category": 1000,
+        "store": 2,
+        "staff": 2,
+        "customer": 599,
+        "inventory": 4581,
+        "rental": 16044,
+        "payment": 16049,
+    }
+    consultas = [
+        (
+            f"SELECT '{tabla}' AS tabla, {cantidad} AS filas_origen, "
+            f"COUNT(*) AS filas_sql_server, COUNT(*) - {cantidad} AS diferencia "
+            f"FROM [{t(tabla)}]"
+        )
+        for tabla, cantidad in filas_origen.items()
+    ]
+    return "\nUNION ALL\n".join(consultas) + ";"
