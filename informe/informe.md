@@ -87,14 +87,16 @@ Se detectaron 11 películas con ingresos superiores al umbral de Tukey (\$181.80
 ---
 
 ### Hallazgo 2 — El precio determina la velocidad de amortización, no la demanda
+
 ![Gráfico 2 — Boxplot Ratio de Recupero](../graficos/g2_boxplot_ratio_recupero.png)
+
+* **Distribución del recupero por tarifa:** El boxplot evidencia una asimetría estructural severa. A **\$4.99**, el **58.4%** de los títulos supera el umbral de break-even (ratio $\ge 1.0\times$) con una mediana de $1.15\times$. Por el contrario, a **\$0.99**, la tasa de éxito colapsa al **3.4%** y la mediana se sitúa en un deficitario $0.46\times$.
+
 ![Gráfico 3 — Cuarteto de Anscombe y Pendientes de Amortización](../graficos/g3_anscombe_recupero_por_precio.png)
 
-* **Observación:** Pese a registrar una rotación promedio similar (~3.5 alquileres por copia), el recupero exhibe una divergencia crítica:
-  * A **\$4.99**, el break-even promedio exige **4.6 alquileres/copia**, alcanzando una **tasa de recupero del 58.4%** con una pendiente de amortización de **$+0.335\times$ por alquiler**.
-  * A **\$0.99**, el break-even asciende a **21.4 alquileres/copia**, colapsando la tasa de recupero al **3.4%** con una pendiente de apenas **$+0.151\times$**.
-* **Explicación:** El costo de reposición es homogéneo en todo el catálogo (~$20 por título), independientemente del precio de alquiler. Fijar \$0.99 impone una exigencia física de rotación que excede la vida útil del soporte antes de su desgaste.
-* **Decisión comercial:** **Congelar compras de copias para títulos de \$0.99.** La inversión en nuevo inventario debe concentrarse en títulos tarifados a \$2.99 y \$4.99 para garantizar tasas de amortización viables.
+* **Pendientes de amortización (Anscombe):** Pese a registrar una rotación promedio similar (~3.5 alquileres por copia), la eficiencia marginal diverge: cada alquiler a **\$4.99** incrementa el recupero en **$+0.335\times$** (break-even en 4.6 alquileres/copia), mientras que a **\$0.99** la pendiente es de apenas **$+0.151\times$** y la exigencia asciende a 21.4 alquileres/copia.
+* **Explicación económica:** El costo de reposición es homogéneo en todo el catálogo (~$20 por título), independientemente del precio de alquiler. Fijar \$0.99 impone una exigencia física de rotación que excede la vida útil del soporte antes de su desgaste material.
+* **Decisión comercial:** **Congelar compras de copias para títulos de \$0.99.** Toda inversión en nuevo inventario debe concentrarse en títulos tarifados a \$2.99 y \$4.99 para asegurar la amortización del capital.
 
 ---
 
