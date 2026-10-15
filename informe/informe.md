@@ -76,7 +76,7 @@ Se detectaron 11 películas con ingresos superiores al umbral de Tukey (\$181.80
 ## 4. Hallazgos Narrativos y Toma de Decisiones
 
 ### Hallazgo 1 — Inelasticidad de Demanda: El precio unitario no condiciona el volumen
-![Gráfico 1 — Dispersión Precio vs Demanda](../graficos/g1_precio_vs_demanda_burbuja.png)
+<img src="../graficos/g1_precio_vs_demanda_burbuja.png" alt="Gráfico 1 — Dispersión Precio vs Demanda" width="550">
 
 * **Observación:** Los tres estratos de precio presentan promedios y dispersiones de rotación física casi idénticos:
   $$\bar{Q}_{\$0.99} = 17.3 \text{ alquileres} \quad|\quad \bar{Q}_{\$2.99} = 16.4 \text{ alquileres} \quad|\quad \bar{Q}_{\$4.99} = 16.5 \text{ alquileres}$$
@@ -88,11 +88,11 @@ Se detectaron 11 películas con ingresos superiores al umbral de Tukey (\$181.80
 
 ### Hallazgo 2 — El precio determina la velocidad de amortización, no la demanda
 
-![Gráfico 2 — Boxplot Ratio de Recupero](../graficos/g2_boxplot_ratio_recupero.png)
+<img src="../graficos/g2_boxplot_ratio_recupero.png" alt="Gráfico 2 — Boxplot Ratio de Recupero" width="550">
 
 * **Distribución del recupero por tarifa:** El boxplot evidencia una asimetría estructural severa. A **\$4.99**, el **58.4%** de los títulos supera el umbral de break-even (ratio $\ge 1.0\times$) con una mediana de $1.15\times$. Por el contrario, a **\$0.99**, la tasa de éxito colapsa al **3.4%** y la mediana se sitúa en un deficitario $0.46\times$.
 
-![Gráfico 3 — Cuarteto de Anscombe y Pendientes de Amortización](../graficos/g3_anscombe_recupero_por_precio.png)
+<img src="../graficos/g3_anscombe_recupero_por_precio.png" alt="Gráfico 3 — Cuarteto de Anscombe y Pendientes de Amortización" width="700">
 
 * **Pendientes de amortización (Anscombe):** Pese a registrar una rotación promedio similar (~3.5 alquileres por copia), la eficiencia marginal diverge: cada alquiler a **\$4.99** incrementa el recupero en **$+0.335\times$** (break-even en 4.6 alquileres/copia), mientras que a **\$0.99** la pendiente es de apenas **$+0.151\times$** y la exigencia asciende a 21.4 alquileres/copia.
 * **Explicación económica:** El costo de reposición es homogéneo en todo el catálogo (~$20 por título), independientemente del precio de alquiler. Fijar \$0.99 impone una exigencia física de rotación que excede la vida útil del soporte antes de su desgaste material.
