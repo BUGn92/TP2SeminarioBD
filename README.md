@@ -145,7 +145,8 @@ Una vez abierto el notebook, seleccionar el kernel **`venv_tp2`** en el menú `K
 ├── requirements.txt        # Dependencias del entorno Python
 ├── .env.example            # Plantilla pública de variables de entorno
 ├── config_conexion.py      # Módulo de conexión a SQL Server con SQLAlchemy y pyodbc
-├── esquema.py              # Diccionario de mapeo canónico y resolución de consultas
+├── esquema.py              # Diccionario canónico y generadores de consultas SQL portables
+├── correspondencia_sakila_es.md # Tabla de nombres canónicos de Sakila y sakila_es
 ├── sql/
 │   ├── reconciliacion.sql  # Script de reconciliación de filas (Actividad 0)
 │   └── conjunto_trabajo.sql# Consulta base del conjunto de trabajo (Actividad 1)
@@ -159,6 +160,12 @@ Una vez abierto el notebook, seleccionar el kernel **`venv_tp2`** en el menú `K
 ├── graficos/               # (se genera en Actividad 3) PNG a 150 DPI
 └── informe/                # (se genera en Actividad 5) PDF + anexo IA
 ```
+
+El notebook y el pipeline generan sus consultas de origen a partir de
+`esquema.py`. Para adaptar esos flujos a otra base Sakila con nombres físicos
+distintos, se actualizan allí las entradas de `ESQUEMA`; las consultas entregadas
+en `sql/` son scripts estáticos para la estructura `sakila_es` de este equipo.
+La conexión al servidor y a la base destino se configura aparte en `.env`.
 
 ## Actividad 4: Pipeline ETL
 

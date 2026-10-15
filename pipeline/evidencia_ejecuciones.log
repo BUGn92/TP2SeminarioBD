@@ -16,3 +16,12 @@
 2026-10-12 18:33:03 | INFO | Inicio de carga en dbo.TP2_RecuperoPorPelicula: 1000 filas.
 2026-10-12 18:33:03 | INFO | Fin de carga y verificación: SELECT COUNT(*) = 1000; film_id distintos = 1000.
 2026-10-12 18:33:03 | INFO | Fin del pipeline ETL: 1000 filas en dbo.TP2_RecuperoPorPelicula.
+2026-10-14 20:12:55 | INFO | Inicio del pipeline ETL.
+2026-10-14 20:12:55 | INFO | Inicio de extracción desde SQL Server.
+2026-10-14 20:12:56 | INFO | Fin de extracción: 1000 filas.
+2026-10-14 20:12:56 | INFO | Inicio de transformación: 1000 filas recibidas.
+2026-10-14 20:12:56 | INFO | Inicio de integración con el archivo plano: 1000 filas.
+2026-10-14 20:12:56 | INFO | Fin de transformación e integración: 1000 filas; 42 películas sin stock.
+2026-10-14 20:12:56 | INFO | Inicio de carga en dbo.TP2_RecuperoPorPelicula: 1000 filas.
+2026-10-14 20:12:56 | INFO | Fin de carga y verificación: SELECT COUNT(*) = 1000; film_id distintos = 1000.
+2026-10-14 20:12:56 | INFO | Fin del pipeline ETL: 1000 filas en dbo.TP2_RecuperoPorPelicula.
