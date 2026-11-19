@@ -161,11 +161,7 @@ Una vez abierto el notebook, seleccionar el kernel **`venv_tp2`** en el menú `K
 └── informe/                # (se genera en Actividad 5) PDF + anexo IA
 ```
 
-El notebook y el pipeline generan sus consultas de origen a partir de
-`esquema.py`. Para adaptar esos flujos a otra base Sakila con nombres físicos
-distintos, se actualizan allí las entradas de `ESQUEMA`; las consultas entregadas
-en `sql/` son scripts estáticos para la estructura `sakila_es` de este equipo.
-La conexión al servidor y a la base destino se configura aparte en `.env`.
+El notebook y el pipeline leen las plantillas portables de `sql/` (`sql/conjunto_trabajo.sql` y `sql/reconciliacion.sql`, libres de nombres en español y de `USE [...]`) y resuelven el esquema (`schema`), las tablas y las columnas exclusivamente desde `esquema.py`. Los filtros variables (`tarifa_min`, `tarifa_max`, `clasificacion`, `esquema`) viajan siempre por `params` en `pd.read_sql`. Para adaptar todo el flujo a la base migrada de otro equipo (incluso en un esquema distinto a `dbo`), basta actualizar el diccionario `ESQUEMA` en `esquema.py` y los datos de conexión en `.env`.
 
 ## Actividad 4: Pipeline ETL
 

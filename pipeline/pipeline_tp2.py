@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -20,8 +21,13 @@ import esquema
 
 DATA_PATH = Path(__file__).resolve().parent / "datos" / "clasificacion_tarifaria.csv"
 LOG_PATH = Path(__file__).resolve().parent / "evidencia_ejecuciones.log"
-TARGET_SCHEMA = "dbo"
+TARGET_SCHEMA = os.getenv("DB_TARGET_SCHEMA", "dbo")
 TARGET_TABLE = "TP2_RecuperoPorPelicula"
+DEFAULT_FILTER_PARAMS = {
+    "tarifa_min": 0.0,
+    "tarifa_max": 999.99,
+    "clasificacion": None,
+}
 SOURCE_COLUMNS = [
     "film_id",
     "title",
@@ -63,10 +69,20 @@ def configurar_logging() -> None:
     logger.addHandler(file_handler)
 
 
-def extraer(engine: Engine) -> pd.DataFrame:
-    logger.info("Inicio de extracción desde SQL Server.")
+def extraer(
+    engine: Engine,
+    params: dict | None = None,
+) -> pd.DataFrame:
+    parametros = dict(DEFAULT_FILTER_PARAMS)
+    if params:
+        parametros.update(params)
+    logger.info(
+        "Inicio de extracción desde SQL Server (esquema=%s, params=%s).",
+        esquema.schema(),
+        parametros,
+    )
     query = text(esquema.generar_query_conjunto_trabajo())
-    dataframe = pd.read_sql_query(query, con=engine)
+    dataframe = pd.read_sql_query(query, con=engine, params=parametros)
     logger.info("Fin de extracción: %d filas.", len(dataframe))
     return dataframe
 
@@ -97,6 +113,9 @@ def transformar(dataframe: pd.DataFrame, ruta_clasificacion: Path = DATA_PATH) -
     logger.info("Inicio de transformación: %d filas recibidas.", len(dataframe))
     validar_calidad(dataframe)
     resultado = dataframe.copy()
+    resultado["rental_rate"] = resultado["rental_rate"].astype(float).round(2)
+    resultado["replacement_cost"] = resultado["replacement_cost"].astype(float).round(2)
+    resultado["total_revenue"] = resultado["total_revenue"].astype(float).round(2)
     sin_stock = resultado["inventory_count"].eq(0)
 
     resultado["ingreso_por_copia"] = np.where(
@@ -136,6 +155,7 @@ def transformar(dataframe: pd.DataFrame, ruta_clasificacion: Path = DATA_PATH) -
             "El archivo complementario debe tener las columnas "
             "'rental_rate' y 'nivel_precio'."
         )
+    clasificacion["rental_rate"] = clasificacion["rental_rate"].astype(float).round(2)
     if clasificacion["rental_rate"].duplicated().any():
         raise ValueError("El archivo complementario repite tarifas de alquiler.")
     if clasificacion[["rental_rate", "nivel_precio"]].isna().any().any():

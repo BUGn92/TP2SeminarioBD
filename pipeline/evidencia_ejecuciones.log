@@ -25,3 +25,415 @@
 2026-10-14 20:12:56 | INFO | Inicio de carga en dbo.TP2_RecuperoPorPelicula: 1000 filas.
 2026-10-14 20:12:56 | INFO | Fin de carga y verificación: SELECT COUNT(*) = 1000; film_id distintos = 1000.
 2026-10-14 20:12:56 | INFO | Fin del pipeline ETL: 1000 filas en dbo.TP2_RecuperoPorPelicula.
+2026-11-18 19:22:12 | INFO | Inicio del pipeline ETL.
+2026-11-18 19:22:12 | INFO | Inicio de extracción desde SQL Server (esquema=dbo, params={'tarifa_min': 0.0, 'tarifa_max': 999.99, 'clasificacion': None}).
+2026-11-18 19:22:12 | ERROR | Falló el pipeline ETL; la carga transaccional fue cancelada.
+Traceback (most recent call last):
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1943, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 1180, in do_execute
+    cursor.execute(statement, parameters)
+pyodbc.ProgrammingError: ('The SQL contains 4 parameter markers, but 7 parameters were supplied', 'HY000')
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/pandas/io/sql.py", line 1679, in execute
+    return execute_function(sql, *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1448, in execute
+    return meth(
+           ^^^^^
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 533, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1668, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1822, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1962, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2332, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1943, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 1180, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.ProgrammingError: (pyodbc.ProgrammingError) ('The SQL contains 4 parameter markers, but 7 parameters were supplied', 'HY000')
+[SQL: -- =====================================================================
+-- Trabajo Práctico 2 - Equipo 6
+-- Actividad 1: Plantilla T-SQL del Conjunto de Trabajo Base (Portable)
+-- Variante 6: Precios, recupero y rentabilidad del catálogo
+-- =====================================================================
+-- Diseño de portabilidad y seguridad:
+-- 1. No contiene nombres propios en español ni instrucciones USE [...].
+--    Los identificadores de esquema, tablas y columnas se resuelven
+--    exclusivamente desde esquema.py (validados antes de renderizar).
+-- 2. Todo valor variable de filtrado (?, ?,
+--    ?) viaja estrictamente mediante el argumento params
+--    de pandas.read_sql / SQLAlchemy (prevención de inyección SQL).
+-- 3. Se utiliza LEFT JOIN para conservar el 100% del catálogo (incluidas
+--    las 42 películas sin copias en inventario) y COUNT(DISTINCT ...) en
+--    alquileres para evitar multiplicación ante múltiples pagos por alquiler.
+-- =====================================================================
+
+SELECT
+    f.[id_pelicula]                     AS film_id,
+    f.[titulo]                  AS title,
+    f.[tarifa_alquiler]                   AS rental_rate,
+    f.[costo_reemplazo]                   AS replacement_cost,
+    f.[duracion_alquiler]               AS rental_duration,
+    f.[clasificacion]                 AS rating,
+    COUNT(DISTINCT i.[id_inventario])      AS inventory_count,
+    COUNT(DISTINCT r.[id_alquiler])     AS rental_count,
+    ISNULL(SUM(p.[monto]), 0.0) AS total_revenue
+FROM [dbo].[pelicula] f
+LEFT JOIN [dbo].[inventario] i
+    ON f.[id_pelicula] = i.[id_pelicula]
+LEFT JOIN [dbo].[alquiler] r
+    ON i.[id_inventario] = r.[id_inventario]
+LEFT JOIN [dbo].[pago] p
+    ON r.[id_alquiler] = p.[id_alquiler]
+WHERE f.[tarifa_alquiler] BETWEEN ? AND ?
+  AND (? IS NULL OR f.[clasificacion] = ?)
+GROUP BY
+    f.[id_pelicula],
+    f.[titulo],
+    f.[tarifa_alquiler],
+    f.[costo_reemplazo],
+    f.[duracion_alquiler],
+    f.[clasificacion]
+ORDER BY
+    f.[id_pelicula];
+]
+[parameters: (0.0, 999.99, None, 0.0, 999.99, None, None)]
+(Background on this error at: https://sqlalche.me/e/21/f405)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/pipeline/pipeline_tp2.py", line 293, in orquestar
+    extraido = extraer(engine)
+               ^^^^^^^^^^^^^^^
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/pipeline/pipeline_tp2.py", line 85, in extraer
+    dataframe = pd.read_sql_query(query, con=engine, params=parametros)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/pandas/io/sql.py", line 497, in read_sql_query
+    return pandas_sql.read_query(
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/pandas/io/sql.py", line 1856, in read_query
+    result = self.execute(sql, params)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/pandas/io/sql.py", line 1681, in execute
+    raise DatabaseError(f"Execution failed on sql '{sql}': {exc}") from exc
+pandas.errors.DatabaseError: Execution failed on sql '-- =====================================================================
+-- Trabajo Práctico 2 - Equipo 6
+-- Actividad 1: Plantilla T-SQL del Conjunto de Trabajo Base (Portable)
+-- Variante 6: Precios, recupero y rentabilidad del catálogo
+-- =====================================================================
+-- Diseño de portabilidad y seguridad:
+-- 1. No contiene nombres propios en español ni instrucciones USE [...].
+--    Los identificadores de esquema, tablas y columnas se resuelven
+--    exclusivamente desde esquema.py (validados antes de renderizar).
+-- 2. Todo valor variable de filtrado (:tarifa_min, :tarifa_max,
+--    :clasificacion) viaja estrictamente mediante el argumento params
+--    de pandas.read_sql / SQLAlchemy (prevención de inyección SQL).
+-- 3. Se utiliza LEFT JOIN para conservar el 100% del catálogo (incluidas
+--    las 42 películas sin copias en inventario) y COUNT(DISTINCT ...) en
+--    alquileres para evitar multiplicación ante múltiples pagos por alquiler.
+-- =====================================================================
+
+SELECT
+    f.[id_pelicula]                     AS film_id,
+    f.[titulo]                  AS title,
+    f.[tarifa_alquiler]                   AS rental_rate,
+    f.[costo_reemplazo]                   AS replacement_cost,
+    f.[duracion_alquiler]               AS rental_duration,
+    f.[clasificacion]                 AS rating,
+    COUNT(DISTINCT i.[id_inventario])      AS inventory_count,
+    COUNT(DISTINCT r.[id_alquiler])     AS rental_count,
+    ISNULL(SUM(p.[monto]), 0.0) AS total_revenue
+FROM [dbo].[pelicula] f
+LEFT JOIN [dbo].[inventario] i
+    ON f.[id_pelicula] = i.[id_pelicula]
+LEFT JOIN [dbo].[alquiler] r
+    ON i.[id_inventario] = r.[id_inventario]
+LEFT JOIN [dbo].[pago] p
+    ON r.[id_alquiler] = p.[id_alquiler]
+WHERE f.[tarifa_alquiler] BETWEEN :tarifa_min AND :tarifa_max
+  AND (:clasificacion IS NULL OR f.[clasificacion] = :clasificacion)
+GROUP BY
+    f.[id_pelicula],
+    f.[titulo],
+    f.[tarifa_alquiler],
+    f.[costo_reemplazo],
+    f.[duracion_alquiler],
+    f.[clasificacion]
+ORDER BY
+    f.[id_pelicula];
+': (pyodbc.ProgrammingError) ('The SQL contains 4 parameter markers, but 7 parameters were supplied', 'HY000')
+[SQL: -- =====================================================================
+-- Trabajo Práctico 2 - Equipo 6
+-- Actividad 1: Plantilla T-SQL del Conjunto de Trabajo Base (Portable)
+-- Variante 6: Precios, recupero y rentabilidad del catálogo
+-- =====================================================================
+-- Diseño de portabilidad y seguridad:
+-- 1. No contiene nombres propios en español ni instrucciones USE [...].
+--    Los identificadores de esquema, tablas y columnas se resuelven
+--    exclusivamente desde esquema.py (validados antes de renderizar).
+-- 2. Todo valor variable de filtrado (?, ?,
+--    ?) viaja estrictamente mediante el argumento params
+--    de pandas.read_sql / SQLAlchemy (prevención de inyección SQL).
+-- 3. Se utiliza LEFT JOIN para conservar el 100% del catálogo (incluidas
+--    las 42 películas sin copias en inventario) y COUNT(DISTINCT ...) en
+--    alquileres para evitar multiplicación ante múltiples pagos por alquiler.
+-- =====================================================================
+
+SELECT
+    f.[id_pelicula]                     AS film_id,
+    f.[titulo]                  AS title,
+    f.[tarifa_alquiler]                   AS rental_rate,
+    f.[costo_reemplazo]                   AS replacement_cost,
+    f.[duracion_alquiler]               AS rental_duration,
+    f.[clasificacion]                 AS rating,
+    COUNT(DISTINCT i.[id_inventario])      AS inventory_count,
+    COUNT(DISTINCT r.[id_alquiler])     AS rental_count,
+    ISNULL(SUM(p.[monto]), 0.0) AS total_revenue
+FROM [dbo].[pelicula] f
+LEFT JOIN [dbo].[inventario] i
+    ON f.[id_pelicula] = i.[id_pelicula]
+LEFT JOIN [dbo].[alquiler] r
+    ON i.[id_inventario] = r.[id_inventario]
+LEFT JOIN [dbo].[pago] p
+    ON r.[id_alquiler] = p.[id_alquiler]
+WHERE f.[tarifa_alquiler] BETWEEN ? AND ?
+  AND (? IS NULL OR f.[clasificacion] = ?)
+GROUP BY
+    f.[id_pelicula],
+    f.[titulo],
+    f.[tarifa_alquiler],
+    f.[costo_reemplazo],
+    f.[duracion_alquiler],
+    f.[clasificacion]
+ORDER BY
+    f.[id_pelicula];
+]
+[parameters: (0.0, 999.99, None, 0.0, 999.99, None, None)]
+(Background on this error at: https://sqlalche.me/e/21/f405)
+2026-11-18 19:22:12 | INFO | Inicio del pipeline ETL.
+2026-11-18 19:22:12 | INFO | Inicio de extracción desde SQL Server (esquema=dbo, params={'tarifa_min': 0.0, 'tarifa_max': 999.99, 'clasificacion': None}).
+2026-11-18 19:22:13 | ERROR | Falló el pipeline ETL; la carga transaccional fue cancelada.
+Traceback (most recent call last):
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1943, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 1180, in do_execute
+    cursor.execute(statement, parameters)
+pyodbc.ProgrammingError: ('The SQL contains 4 parameter markers, but 7 parameters were supplied', 'HY000')
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/pandas/io/sql.py", line 1679, in execute
+    return execute_function(sql, *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1448, in execute
+    return meth(
+           ^^^^^
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 533, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1668, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1822, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1962, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2332, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1943, in _exec_single_context
+    self.dialect.do_execute(
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/sqlalchemy/engine/default.py", line 1180, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.ProgrammingError: (pyodbc.ProgrammingError) ('The SQL contains 4 parameter markers, but 7 parameters were supplied', 'HY000')
+[SQL: -- =====================================================================
+-- Trabajo Práctico 2 - Equipo 6
+-- Actividad 1: Plantilla T-SQL del Conjunto de Trabajo Base (Portable)
+-- Variante 6: Precios, recupero y rentabilidad del catálogo
+-- =====================================================================
+-- Diseño de portabilidad y seguridad:
+-- 1. No contiene nombres propios en español ni instrucciones USE [...].
+--    Los identificadores de esquema, tablas y columnas se resuelven
+--    exclusivamente desde esquema.py (validados antes de renderizar).
+-- 2. Todo valor variable de filtrado (?, ?,
+--    ?) viaja estrictamente mediante el argumento params
+--    de pandas.read_sql / SQLAlchemy (prevención de inyección SQL).
+-- 3. Se utiliza LEFT JOIN para conservar el 100% del catálogo (incluidas
+--    las 42 películas sin copias en inventario) y COUNT(DISTINCT ...) en
+--    alquileres para evitar multiplicación ante múltiples pagos por alquiler.
+-- =====================================================================
+
+SELECT
+    f.[id_pelicula]                     AS film_id,
+    f.[titulo]                  AS title,
+    f.[tarifa_alquiler]                   AS rental_rate,
+    f.[costo_reemplazo]                   AS replacement_cost,
+    f.[duracion_alquiler]               AS rental_duration,
+    f.[clasificacion]                 AS rating,
+    COUNT(DISTINCT i.[id_inventario])      AS inventory_count,
+    COUNT(DISTINCT r.[id_alquiler])     AS rental_count,
+    ISNULL(SUM(p.[monto]), 0.0) AS total_revenue
+FROM [dbo].[pelicula] f
+LEFT JOIN [dbo].[inventario] i
+    ON f.[id_pelicula] = i.[id_pelicula]
+LEFT JOIN [dbo].[alquiler] r
+    ON i.[id_inventario] = r.[id_inventario]
+LEFT JOIN [dbo].[pago] p
+    ON r.[id_alquiler] = p.[id_alquiler]
+WHERE f.[tarifa_alquiler] BETWEEN ? AND ?
+  AND (? IS NULL OR f.[clasificacion] = ?)
+GROUP BY
+    f.[id_pelicula],
+    f.[titulo],
+    f.[tarifa_alquiler],
+    f.[costo_reemplazo],
+    f.[duracion_alquiler],
+    f.[clasificacion]
+ORDER BY
+    f.[id_pelicula];
+]
+[parameters: (0.0, 999.99, None, 0.0, 999.99, None, None)]
+(Background on this error at: https://sqlalche.me/e/21/f405)
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/pipeline/pipeline_tp2.py", line 293, in orquestar
+    extraido = extraer(engine)
+               ^^^^^^^^^^^^^^^
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/pipeline/pipeline_tp2.py", line 85, in extraer
+    dataframe = pd.read_sql_query(query, con=engine, params=parametros)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/pandas/io/sql.py", line 497, in read_sql_query
+    return pandas_sql.read_query(
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/pandas/io/sql.py", line 1856, in read_query
+    result = self.execute(sql, params)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/agustin/seminario base de datos/tp2 Bugnoni Zarate/venv_tp2/lib/python3.12/site-packages/pandas/io/sql.py", line 1681, in execute
+    raise DatabaseError(f"Execution failed on sql '{sql}': {exc}") from exc
+pandas.errors.DatabaseError: Execution failed on sql '-- =====================================================================
+-- Trabajo Práctico 2 - Equipo 6
+-- Actividad 1: Plantilla T-SQL del Conjunto de Trabajo Base (Portable)
+-- Variante 6: Precios, recupero y rentabilidad del catálogo
+-- =====================================================================
+-- Diseño de portabilidad y seguridad:
+-- 1. No contiene nombres propios en español ni instrucciones USE [...].
+--    Los identificadores de esquema, tablas y columnas se resuelven
+--    exclusivamente desde esquema.py (validados antes de renderizar).
+-- 2. Todo valor variable de filtrado (:tarifa_min, :tarifa_max,
+--    :clasificacion) viaja estrictamente mediante el argumento params
+--    de pandas.read_sql / SQLAlchemy (prevención de inyección SQL).
+-- 3. Se utiliza LEFT JOIN para conservar el 100% del catálogo (incluidas
+--    las 42 películas sin copias en inventario) y COUNT(DISTINCT ...) en
+--    alquileres para evitar multiplicación ante múltiples pagos por alquiler.
+-- =====================================================================
+
+SELECT
+    f.[id_pelicula]                     AS film_id,
+    f.[titulo]                  AS title,
+    f.[tarifa_alquiler]                   AS rental_rate,
+    f.[costo_reemplazo]                   AS replacement_cost,
+    f.[duracion_alquiler]               AS rental_duration,
+    f.[clasificacion]                 AS rating,
+    COUNT(DISTINCT i.[id_inventario])      AS inventory_count,
+    COUNT(DISTINCT r.[id_alquiler])     AS rental_count,
+    ISNULL(SUM(p.[monto]), 0.0) AS total_revenue
+FROM [dbo].[pelicula] f
+LEFT JOIN [dbo].[inventario] i
+    ON f.[id_pelicula] = i.[id_pelicula]
+LEFT JOIN [dbo].[alquiler] r
+    ON i.[id_inventario] = r.[id_inventario]
+LEFT JOIN [dbo].[pago] p
+    ON r.[id_alquiler] = p.[id_alquiler]
+WHERE f.[tarifa_alquiler] BETWEEN :tarifa_min AND :tarifa_max
+  AND (:clasificacion IS NULL OR f.[clasificacion] = :clasificacion)
+GROUP BY
+    f.[id_pelicula],
+    f.[titulo],
+    f.[tarifa_alquiler],
+    f.[costo_reemplazo],
+    f.[duracion_alquiler],
+    f.[clasificacion]
+ORDER BY
+    f.[id_pelicula];
+': (pyodbc.ProgrammingError) ('The SQL contains 4 parameter markers, but 7 parameters were supplied', 'HY000')
+[SQL: -- =====================================================================
+-- Trabajo Práctico 2 - Equipo 6
+-- Actividad 1: Plantilla T-SQL del Conjunto de Trabajo Base (Portable)
+-- Variante 6: Precios, recupero y rentabilidad del catálogo
+-- =====================================================================
+-- Diseño de portabilidad y seguridad:
+-- 1. No contiene nombres propios en español ni instrucciones USE [...].
+--    Los identificadores de esquema, tablas y columnas se resuelven
+--    exclusivamente desde esquema.py (validados antes de renderizar).
+-- 2. Todo valor variable de filtrado (?, ?,
+--    ?) viaja estrictamente mediante el argumento params
+--    de pandas.read_sql / SQLAlchemy (prevención de inyección SQL).
+-- 3. Se utiliza LEFT JOIN para conservar el 100% del catálogo (incluidas
+--    las 42 películas sin copias en inventario) y COUNT(DISTINCT ...) en
+--    alquileres para evitar multiplicación ante múltiples pagos por alquiler.
+-- =====================================================================
+
+SELECT
+    f.[id_pelicula]                     AS film_id,
+    f.[titulo]                  AS title,
+    f.[tarifa_alquiler]                   AS rental_rate,
+    f.[costo_reemplazo]                   AS replacement_cost,
+    f.[duracion_alquiler]               AS rental_duration,
+    f.[clasificacion]                 AS rating,
+    COUNT(DISTINCT i.[id_inventario])      AS inventory_count,
+    COUNT(DISTINCT r.[id_alquiler])     AS rental_count,
+    ISNULL(SUM(p.[monto]), 0.0) AS total_revenue
+FROM [dbo].[pelicula] f
+LEFT JOIN [dbo].[inventario] i
+    ON f.[id_pelicula] = i.[id_pelicula]
+LEFT JOIN [dbo].[alquiler] r
+    ON i.[id_inventario] = r.[id_inventario]
+LEFT JOIN [dbo].[pago] p
+    ON r.[id_alquiler] = p.[id_alquiler]
+WHERE f.[tarifa_alquiler] BETWEEN ? AND ?
+  AND (? IS NULL OR f.[clasificacion] = ?)
+GROUP BY
+    f.[id_pelicula],
+    f.[titulo],
+    f.[tarifa_alquiler],
+    f.[costo_reemplazo],
+    f.[duracion_alquiler],
+    f.[clasificacion]
+ORDER BY
+    f.[id_pelicula];
+]
+[parameters: (0.0, 999.99, None, 0.0, 999.99, None, None)]
+(Background on this error at: https://sqlalche.me/e/21/f405)
+2026-11-18 19:22:57 | INFO | Inicio del pipeline ETL.
+2026-11-18 19:22:57 | INFO | Inicio de extracción desde SQL Server (esquema=dbo, params={'tarifa_min': 0.0, 'tarifa_max': 999.99, 'clasificacion': None}).
+2026-11-18 19:22:57 | INFO | Fin de extracción: 1000 filas.
+2026-11-18 19:22:57 | INFO | Inicio de transformación: 1000 filas recibidas.
+2026-11-18 19:22:57 | INFO | Inicio de integración con el archivo plano: 1000 filas.
+2026-11-18 19:22:57 | INFO | Fin de transformación e integración: 1000 filas; 42 películas sin stock.
+2026-11-18 19:22:57 | INFO | Inicio de carga en dbo.TP2_RecuperoPorPelicula: 1000 filas.
+2026-11-18 19:22:57 | INFO | Fin de carga y verificación: SELECT COUNT(*) = 1000; film_id distintos = 1000.
+2026-11-18 19:22:57 | INFO | Fin del pipeline ETL: 1000 filas en dbo.TP2_RecuperoPorPelicula.
+2026-11-18 19:22:58 | INFO | Inicio del pipeline ETL.
+2026-11-18 19:22:58 | INFO | Inicio de extracción desde SQL Server (esquema=dbo, params={'tarifa_min': 0.0, 'tarifa_max': 999.99, 'clasificacion': None}).
+2026-11-18 19:22:58 | INFO | Fin de extracción: 1000 filas.
+2026-11-18 19:22:58 | INFO | Inicio de transformación: 1000 filas recibidas.
+2026-11-18 19:22:58 | INFO | Inicio de integración con el archivo plano: 1000 filas.
+2026-11-18 19:22:58 | INFO | Fin de transformación e integración: 1000 filas; 42 películas sin stock.
+2026-11-18 19:22:58 | INFO | Inicio de carga en dbo.TP2_RecuperoPorPelicula: 1000 filas.
+2026-11-18 19:22:58 | INFO | Fin de carga y verificación: SELECT COUNT(*) = 1000; film_id distintos = 1000.
+2026-11-18 19:22:58 | INFO | Fin del pipeline ETL: 1000 filas en dbo.TP2_RecuperoPorPelicula.
