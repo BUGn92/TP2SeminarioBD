@@ -1,10 +1,8 @@
 # Correspondencia entre Sakila y `sakila_es`
 
-La tabla compara los nombres canónicos de Sakila con los nombres físicos definidos
-en `sakila_es`. Las columnas se listan como **nombre canónico → nombre local**.
-Se incluyen las 15 tablas presentes en el esquema SQL del proyecto.
+La tabla compara los nombres canónicos de Sakila con el esquema (`dbo`) y los nombres físicos definidos en `sakila_es`. Las columnas se listan como **nombre canónico → nombre local**. Se incluyen las 15 tablas presentes en el esquema SQL del proyecto.
 
-| Tabla Sakila | Tabla `sakila_es` | Correspondencia de columnas |
+| Tabla Sakila | Tabla `sakila_es` (`dbo`) | Correspondencia de columnas |
 |---|---|---|
 | `actor` | `actor` | `actor_id` → `id_actor`; `first_name` → `nombre`; `last_name` → `apellido`; `last_update` → `ultima_actualizacion` |
 | `category` | `categoria` | `category_id` → `id_categoria`; `name` → `nombre`; `last_update` → `ultima_actualizacion` |
@@ -22,11 +20,10 @@ Se incluyen las 15 tablas presentes en el esquema SQL del proyecto.
 | `film_actor` | `pelicula_actor` | `actor_id` → `id_actor`; `film_id` → `id_pelicula`; `last_update` → `ultima_actualizacion` |
 | `film_category` | `pelicula_categoria` | `film_id` → `id_pelicula`; `category_id` → `id_categoria`; `last_update` → `ultima_actualizacion` |
 
-## Diferencias de cobertura
+## Cobertura y Reconciliación con el Origen
 
-La tabla canónica auxiliar `film_text` no está creada en el esquema local; sus
-campos, por lo tanto, no tienen correspondencia física en `sakila_es`. El resto
-de las tablas y columnas listadas se cotejaron con `sakila-schemaSQLserver.sql`.
+* **15 de 15 tablas reconciliadas con diferencia = 0** (conteo dinámico desde `sakila-dataSQLserver.sql` vs. `sys.tables`/`sys.partitions` en SQL Server).
+* En `payment` (`pago`), tanto el volcado como SQL Server contienen exactamente **16.044 filas** (con `id_pago` hasta `16.049` debido a 5 huecos de secuencia: `424, 7011, 10840, 14675, 15458`, y 0 registros con `id_alquiler IS NULL`).
+* La tabla auxiliar `film_text` no fue creada por diseño en `sakila_es`.
 
-El diccionario programático de la misma correspondencia se mantiene en
-[`esquema.py`](./esquema.py).
+El diccionario programático (incluyendo `"schema": "dbo"` y validación estricta con `KeyError`) se mantiene como fuente única en [`esquema.py`](./esquema.py).

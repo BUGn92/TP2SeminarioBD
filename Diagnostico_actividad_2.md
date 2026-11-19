@@ -1,65 +1,42 @@
 # Diagnóstico de Calidad de Datos — Actividad 2
-**Seminario de Bases de Datos 2026 — ISNSLBV**  
-**Equipo:** 6 | **Variante:** 6 (Precio de alquiler frente a costo de reposición y recupero de inversión)  
-**Conjunto de trabajo:** `df_trabajo` (1 000 películas del catálogo consolidado)
+**Seminario de Bases de Datos 2026 — ISNSLBV** | **Equipo 6 — Variante 6:** Precios, recupero y rentabilidad del catálogo  
+**Conjunto de trabajo:** `df_trabajo` (1.000 películas consolidadas desde `sakila_es` + auditoría transaccional en SQL Server)
 
 ---
 
-## 1. Contexto y Alcance del Diagnóstico
-El presente documento constituye el control previo de calidad de datos (*data profiling*) sobre el conjunto de trabajo extraído desde SQL Server, siguiendo los lineamientos teóricos y las 6 dimensiones de calidad de la **Unidad 5** (*Completitud, Unicidad, Validez, Consistencia, Exactitud y Oportunidad*).
+## 1. Alcance y Checklist de Calidad de Datos (8 Puntos — Unidad 5)
 
-El objetivo es determinar la confiabilidad del conjunto previo al cálculo de métricas derivadas y formalizar las decisiones de transformación o conservación de registros.
+Se auditaron las seis dimensiones formales (*Completitud, Unicidad, Validez, Consistencia, Exactitud y Oportunidad*) antes de calcular métricas derivadas:
 
----
-
-## 2. Checklist de Calidad de Datos (Unidad 5)
-
-A continuación se detalla la evaluación sistemática sobre los 8 puntos del recorrido de rutina:
-
-| # | Pregunta de Control (Unidad 5) | Hallazgo en los Datos | Decisión / Transformación Propuesta | Fundamento Técnico y de Negocio |
+| # | Control (Unidad 5) | Hallazgo en los Datos | Decisión / Transformación | Fundamento Técnico y de Negocio |
 |---|---|---|---|---|
-| **1** | **¿Volumen y dimensiones esperadas?** | **1 000 filas × 9 columnas.** Coincide con el universo de películas reconciliado contra SQL Server. | **Conservar sin filtrar.** | Se garantiza la totalidad del catálogo; no hay pérdida ni multiplicación de entidades. |
-| **2** | **¿Tipos de datos correctos?** | Identificadores y contadores en `int64`; importes monetarios en `float64`; textos en `object`/`str`. | **Sin transformación de tipos.** | No hay campos numéricos o fechas infiltrados como texto (`str`). |
-| **3** | **¿Valores faltantes y criterio adoptado?** | **0 celdas nulas** (`isna().sum() == 0` en todas las columnas). | **Sin imputación.** | La consulta base con `LEFT JOIN` e `ISNULL(..., 0)` resolvió las ausencias en origen. |
-| **4** | **¿Duplicados por clave de negocio?** | **0 duplicados** sobre `film_id` (`film_id.nunique() == 1000`). | **Sin transformación.** | Cada película del catálogo está representada de forma unívoca. |
-| **5** | **¿Rangos válidos y reglas de negocio?** | • `rental_rate > 0` (100% cumple)<br>• `replacement_cost > rental_rate` (100% cumple)<br>• `total_revenue >= 0` (100% cumple)<br>• `replacement_cost` en $[9.99, 29.99]$ | **Aceptado.** | Cumplimiento estricto de restricciones del dominio económico del videoclub. |
-| **6** | **¿Variables categóricas normalizadas?** | `rating` presenta 5 categorías canónicas (`PG-13`, `NC-17`, `R`, `PG`, `G`) sin variantes ortográficas. | **Sin transformación de cadenas.** | No existen espacios sucios, sinónimos ni problemas de mayúsculas/minúsculas. |
-| **7** | **¿Cardinalidad esperada / Columnas constantes?** | Sin columnas constantes (todas con varianza $> 0$). `rental_rate` presenta **cardinalidad 3** ($0.99, $2.99, $4.99). | **Segmentación discreta en Actividad 3.** | *Hallazgo crítico:* Invalida el modelado de elasticidad continua; exige comparar 3 estratos de precio. |
-| **8** | **¿Período temporal adecuado?** | Consolida el histórico completo acumulado de transacciones de alquiler y recaudación. | **Apto para el análisis.** | Cobertura suficiente para evaluar el recupero histórico de la inversión por título. |
+| **1** | **Volumen y dimensiones** | **1.000 filas × 9 columnas.** Reconciliación 15/15 tablas con diferencia = 0 (16.044 alquileres y 16.044 pagos). | **Conservar sin filtrar.** | Cobertura íntegra del catálogo sin pérdida ni multiplicación de entidades. |
+| **2** | **Tipos de datos** | IDs y conteos en `int64`; montos `DECIMAL(4,2)`/`(5,2)` leídos en Pandas como `float64`; textos en `str`/`object`. | **Sin casteo.** | Sin números ni fechas infiltrados como texto; precisión validada (`0.000000` diff vs. T-SQL). |
+| **3** | **Valores faltantes** | **0 nulos** en las 9 columnas de `df_trabajo`. En `alquiler`, 183 filas tienen `return_date IS NULL`. | **Sin imputación.** | `LEFT JOIN` + `ISNULL(..., 0)` absorbieron ausencias en origen; 183 alquileres abiertos son válidos. |
+| **4** | **Duplicados por clave** | **0 duplicados** sobre `film_id` (`nunique() == 1000`). | **Sin transformación.** | Unicidad garantizada por película. |
+| **5** | **Reglas de negocio propias** | 0 violaciones en 3 reglas independientes: (1) `replacement_cost > rental_rate` (ratio 2.0x–30.3x), (2) `return_date >= rental_date` (16.044 alq.) y (3) `payment_date >= rental_date` (16.044 pagos). | **Aceptado.** | Cumplimiento del 100% de restricciones lógicas de catálogo y cronología transaccional (sin superponerse con el control específico). |
+| **6** | **Categorías normalizadas** | `rating` presenta 5 valores canónicos (`G`, `PG`, `PG-13`, `R`, `NC-17`). | **Sin limpieza de strings.** | Sin variantes ortográficas, espacios sucios ni inconsistencias de mayúsculas. |
+| **7** | **Cardinalidad y constantes** | Sin columnas constantes. **`rental_rate` toma solo 3 valores discretos** (\$0.99, \$2.99, \$4.99). | **Segmentación discreta en Act. 3.** | *Hallazgo crítico:* invalida elasticidad continua; obliga a comparar 3 estratos fijos. |
+| **8** | **Oportunidad / período** | **Serie histórica y discontinua (2005–2006):** actividad en may–ago 2005, **5 meses enteros sin movimientos** (sep 2005–ene 2006) y 182 registros el 14/02/2006. | **Apto con reserva explícita.** | Sirve para medir recupero acumulado en el período observado; impide inferir estacionalidad continua o vigencia actual. |
 
 ---
 
-## 3. Análisis de Valores Atípicos (Regla IQR de Tukey)
+## 2. Valores Atípicos (Regla IQR de Tukey sobre `total_revenue`)
 
-Sobre la métrica principal (`total_revenue`), se calcularon los estadísticos de dispersión:
-* **$Q_1$ (P25):** $33.95 | **Mediana (P50):** $61.85 | **$Q_3$ (P75):** $93.09 | **IQR:** $59.14
-* **Límite Inferior ($Q_1 - 1.5 \times IQR$):** −$54.77 *(teórico)* $\rightarrow$ Umbral físico: $0.00
-* **Límite Superior ($Q_3 + 1.5 \times IQR$):** $181.80
-
-### Decisiones de Limpieza Justificadas:
-
-1. **Outliers Superiores (11 películas con ingresos $> \$181.80$):**
-   * **Decisión:** **NO SE ELIMINAN.**
-   * **Fundamento:** Corresponden a los títulos de alta rotación (*blockbusters*, ej. *TELEGRAPH VOYAGE* con $231.73 y 27 alquileres a $4.99). El criterio de Tukey solo identifica candidatos estadísticos; eliminarlos eliminaría los casos comerciales más exitosos y sesgaría negativamente el análisis de rentabilidad.
-2. **Películas con Ingreso Cero (42 películas con `total_revenue = $0.0`):**
-   * **Decisión:** **SE CONSERVAN Y SE ETIQUETAN.**
-   * **Fundamento:** Coinciden exactamente con las 42 películas sin copias físicas en inventario (`inventory_count = 0`). Su recaudación nula es una consecuencia directa de la falta de stock y no un error de registro. Se segregan para no distorsionar el análisis de rotación de copias activas.
+* **Cuartiles y límites:** $Q_1 = \$33.95$ | Mediana $= \$61.85$ | $Q_3 = \$93.09$ | $IQR = \$59.14$ | Límite inferior $= -\$54.77$ (piso físico $\$0.00$) | **Límite superior $= \$181.80$**.
+* **11 outliers superiores ($>\$181.80$):** **NO SE ELIMINAN.** Corresponden a títulos legítimos de alta rotación (*blockbusters*, ej. *TELEGRAPH VOYAGE* con \$231.73). Eliminarlos sesgaría a la baja la rentabilidad real del catálogo.
+* **42 títulos con ingreso \$0.00:** **SE CONSERVAN Y ETIQUETAN (`"Sin inventario"`).** Coinciden exactamente con los 42 títulos con `inventory_count = 0`. No son errores de carga sino ausencia de stock; se segregan con `sin_stock = True` para evitar divisiones por cero.
 
 ---
 
-## 4. Hallazgos Específicos de la Variante 6 y Réplica en Motor
+## 3. Control Específico de la Variante 6 y Réplica en SQL Server
 
-1. **Estructura Discreta de Precios:**  
-   `rental_rate` se distribuye de forma casi uniforme en solo 3 escalones: \$0.99 (34.1%), \$2.99 (32.3%) y \$4.99 (33.6%). Metodológicamente, esto impide calcular una función de elasticidad-precio continua ($\epsilon = \frac{\%\Delta Q}{\%\Delta P}$), orientando la Actividad 3 hacia el análisis comparativo entre los tres grupos tarifarios.
-2. **Consistencia Motor SQL Server vs. Pandas (Exactitud):**  
-   La réplica de controles de agregación en T-SQL arrojó una **coincidencia del 100%** frente al cliente Pandas (distribución de tarifas y conteo de películas sin ingreso = 42), validando la integridad del mapeo y la extracción.
+* **Precios y costos de reposición:** 0 nulos, 0 valores $\le 0$, y `replacement_cost` dentro del rango $[\$9.99, \$29.99]$. `rental_rate` se reparte casi en tercios: **\$0.99** (341; 34.1%), **\$2.99** (323; 32.3%) y **\$4.99** (336; 33.6%), lo que descarta modelar una curva de elasticidad-precio continua.
+* **Exactitud motor vs. Pandas (2 controles replicados en T-SQL):** Distribución de `rental_rate` (`341 / 323 / 336`) y conteo de películas sin ingreso (`42`) arrojaron **100% de coincidencia exacta** entre SQL Server y Pandas.
 
 ---
 
-## 5. Síntesis y Matriz de Transformaciones
+## 4. Síntesis de Transformaciones Propuestas para Actividad 3 y ETL
 
-* **Registros descartados:** **0 filas (0%)**.
-* **Registros imputados:** **0 filas (0%)**.
-* **Transformaciones a ejecutar en Actividad 3:**
-  1. Cálculo vectorizado de métricas derivadas (ratio de recupero, break-even de alquileres e ingresos netos).
-  2. Flag de segmentación para películas sin inventario (`sin_stock = True`).
+* **Filas descartadas / imputadas:** **0 filas (0%)**.
+* **Transformaciones vectorizadas:** cálculo de `ingreso_por_copia`, `alquileres_por_copia`, `costo_inventario_total`, `ratio_recupero`, `breakeven_alquileres` y bandera `sin_stock` (sin bucles ni divisiones por cero).
